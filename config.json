@@ -1,0 +1,118 @@
+{
+  "log": {
+    "loglevel": "info",
+    "dnsLog": true,
+    "access": "none"
+  },
+  "dns": {
+    "tag": "dns-query",
+    "hosts": {
+      "ima.1v6.me": [  //自己用Total-ECH建的doh域名
+        "104.17.55.0"  //指定一个Cloudflare IP，用来解析doh域名，可以用cfst测速（推荐）
+      ]
+    },
+    "servers": [
+      "https://ima.1v6.me/doh-ech-test"  //自己用Total-ECH建的doh
+    ],
+    "disableFallback": true
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",  //可以直接用，也可以接入Clash使用，方法是在Clash新建一个127.0.0.1:1080的socks5代理（推荐）
+      "tag": "socks-in",
+      "port": 1080,
+      "protocol": "socks",
+      "settings": {
+        "udp": true,
+        "ip": "127.0.0.1"
+      }
+    },
+    {
+      "tag": "tls-decrypt",
+      "protocol": "tunnel",
+      "listen": "127.0.0.1",
+      "port": 44443,
+      "settings": {
+        "port": 443,
+        "Network": "tcp,udp",
+        "followRedirect": true
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {
+          "alpn": ["h3", "h2", "http/1.1"],
+          "certificates": [
+            {
+              "usage": "issue",
+              "certificateFile": "D:\\downloads\\v2rayN-windows-64-desktop\\v2rayN-windows-64\\bin\\mycert.crt",  //
+              "keyFile": "D:\\downloads\\v2rayN-windows-64-desktop\\v2rayN-windows-64\\bin\\mycert.key"  //
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPOnDemand",
+    "rules": [
+      {
+        "inboundTag": ["socks-in"],
+        "outboundTag": "redirect-out",
+        "network": "tcp,udp",
+        "port": 443,
+        "ip": [
+          "geoip:cloudflare",
+          "geoip:facebook"
+        ]
+      },
+      {
+        "inboundTag": ["tls-decrypt"],
+        "outboundTag": "tls-repack",
+        "network": "tcp,udp",
+        "ip": [
+          "geoip:cloudflare",
+          "geoip:facebook"
+        ]
+      },
+      {
+        "inboundTag": ["socks-in"],
+        "outboundTag": "direct"
+      }
+    ]
+  },
+  "outbounds": [
+    {
+      "tag": "redirect-out",
+      "protocol": "freedom",
+      "settings": {
+        "redirect": "127.0.0.1:44443"
+      }
+    },
+    {
+      "tag": "tls-repack",
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "ForceIP"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "fromMitM",
+          "verifyPeerCertInNames": ["fromMitM"],
+          "alpn": ["fromMitM"],
+          "allowInsecure": false,
+          "echConfigList": "https://ima.1v6.me/doh-ech-test",
+          "echForceQuery": "full",
+          "fingerprint": "chrome"
+        }
+      }
+    },
+    {
+      "tag": "direct",
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "ForceIP"
+      }
+    }
+  ]
+}
